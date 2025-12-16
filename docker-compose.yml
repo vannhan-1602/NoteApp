@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+  # Service 1: Backend Python
+  note-backend:
+    build: ./backend
+    ports:
+      - "8000:5000" # Map cổng 5000 container ra 8000 máy tính (để khác Project 1)
+
+  # Service 2: Frontend HTML (Dùng Nginx)
+  note-frontend:
+    image: nginx:alpine
+    ports:
+      - "8080:80" # Web chạy cổng 8080
+    volumes:
+      - ./frontend:/usr/share/nginx/html # Mount folder code vào folder web của Nginx
