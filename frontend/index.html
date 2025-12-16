@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Note App</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="card">
+      <h2>📝 Note App (Python)</h2>
+      <div id="list">Đang tải...</div>
+    </div>
+
+    <script>
+      // QUAN TRỌNG: Thay link Render Python của bạn vào đây sau khi deploy xong backend
+      const API_URL = "https://THAY-LINK-RENDER-VAO-DAY.onrender.com/api/notes";
+
+      fetch(API_URL)
+        .then((res) => res.json())
+        .then((data) => {
+          const list = document.getElementById("list");
+          list.innerHTML = ""; // Xóa chữ Đang tải
+          data.forEach((note) => {
+            const div = document.createElement("div");
+            div.className = "note";
+            div.innerHTML = `<h3>${note.title}</h3><p>${note.content}</p>`;
+            list.appendChild(div);
+          });
+        })
+        .catch((err) => {
+          document.getElementById("list").innerText = "Lỗi kết nối Server!";
+          console.error(err);
+        });
+    </script>
+  </body>
+</html>
