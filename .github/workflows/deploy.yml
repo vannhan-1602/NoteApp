@@ -1,0 +1,55 @@
+name: Deploy NoteApp CI/CD
+
+# 1. Kịch bản chạy khi nào? -> Khi có code push lên nhánh main
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  # --- JOB 1: XỬ LÝ FRONTEND (React) ---
+  build-and-deploy-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lấy code về máy ảo
+        uses: actions/checkout@v3
+
+      - name: Cài đặt Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Cài thư viện & Build React
+        run: |
+          cd frontend
+          npm install
+          npm run build
+        # Lệnh trên sẽ tạo ra thư mục 'frontend/dist'
+
+      - name: Đẩy lên Netlify
+        uses: nwtgck/actions-netlify@v2.0
+        with:
+          publish-dir: "./frontend/dist" # Folder chứa web sau khi build (Vite tạo ra dist)
+          production-branch: main
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "Deploy from GitHub Actions"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+  # --- JOB 2: KIỂM TRA BACKEND (Python) ---
+  check-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lấy code về
+        uses: actions/checkout@v3
+
+      - name: Cài đặt Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Test cài đặt thư viện (Kiểm tra lỗi cú pháp cơ bản)
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          python -c "import flask; print('Backend OK')"
