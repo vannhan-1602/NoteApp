@@ -1,48 +1,57 @@
-import sqlite3
+import os
+import psycopg2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import os
 
 app = Flask(__name__)
-# Cho phép mọi nơi (bao gồm Netlify của bạn) gọi vào API này
 CORS(app)
 
-# Tên file database
-DB_NAME = "notes.db"
+# Lấy đường dẫn DB từ biến môi trường trên Render
+DB_URL = os.environ.get('DATABASE_URL')
 
-# Hàm khởi tạo DB nếu chưa có
+def get_db_connection():
+    conn = psycopg2.connect(DB_URL)
+    return conn
+
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute('''
+    conn = get_db_connection()
+    cur = conn.cursor()
+    # Tạo bảng theo cú pháp PostgreSQL
+    cur.execute('''
         CREATE TABLE IF NOT EXISTS notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             content TEXT NOT NULL
         )
     ''')
     conn.commit()
+    cur.close()
     conn.close()
 
-# Chạy tạo bảng ngay khi khởi động
-init_db()
+# Khởi tạo bảng ngay khi server chạy
+try:
+    init_db()
+    print("Database connected and initialized!")
+except Exception as e:
+    print(f"Error connecting to DB: {e}")
 
 @app.route('/')
 def home():
-    return "Backend is running!"
+    return "Backend with PostgreSQL is running!"
 
-# API lấy danh sách ghi chú
 @app.route('/api/notes', methods=['GET'])
 def get_notes():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM notes ORDER BY id DESC")
-    rows = cursor.fetchall()
-    conn.close()
-    # Chuyển đổi dữ liệu sang JSON
-    notes = [{'id': row[0], 'content': row[1]} for row in rows]
-    return jsonify(notes)
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM notes ORDER BY id DESC")
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        notes = [{'id': row[0], 'content': row[1]} for row in rows]
+        return jsonify(notes)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-# API thêm ghi chú mới
 @app.route('/api/notes', methods=['POST'])
 def add_note():
     data = request.json
@@ -50,12 +59,17 @@ def add_note():
     if not content:
         return jsonify({"error": "No content"}), 400
     
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO notes (content) VALUES (?)", (content,))
-    conn.commit()
-    conn.close()
-    return jsonify({"message": "Added successfully"}), 201
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        # Postgres dùng %s thay vì ?
+        cur.execute("INSERT INTO notes (content) VALUES (%s)", (content,))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"message": "Added successfully"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
